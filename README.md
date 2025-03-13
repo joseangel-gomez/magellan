@@ -1,6 +1,6 @@
 # OpenCHAMI Magellan
 
-The `magellan` CLI tool is a Redfish-based, board management controller (BMC) discovery tool designed to scan networks and is written in Go. The tool collects information from BMC nodes using the provided Redfish RESTful API with [`gofish`](https://github.com/stmcginnis/gofish) and loads the queried data into an [SMD](https://github.com/OpenCHAMI/smd/) instance. The tool strives to be more flexible by implementing multiple methods of discovery to work for a wider range of systems (WIP) and is capable of using independently of other tools or services.
+The `magellan` CLI tool is a Redfish-based, board management controller (BMC) discovery tool designed to scan networks and is written in Go. The tool collects information from BMC nodes using the provided Redfish RESTful API with [`gofish`](https://github.com/stmcginnis/gofish) and loads the queried data into an [SMD](https://github.com/OpenCHAMI/smd/tree/master) instance. The tool strives to be more flexible by implementing multiple methods of discovery to work for a wider range of systems (WIP) and is capable of using independently of other tools or services.
 
 **Note: `magellan` v0.1.0 is incompatible with SMD v2.15.3 and earlier.**
 
@@ -175,13 +175,14 @@ Note: If the `cache` flag is not set, `magellan` will use `/tmp/$USER/magellan.d
 
 ### Updating Firmware
 
-The `magellan` tool is capable of updating firmware with using the `update` subcommand via the Redfish API. This may sometimes necessary if some of the `collect` output is missing or is not including what is expected. The subcommand expects there to be a running HTTP/HTTPS server running that has an accessible URL path to the firmware download. Specify the URL with the `--firmware-path` flag and the firmware type with the `--component` flag with all the other usual arguments like in the example below:
+The `magellan` tool is capable of updating firmware with using the `update` subcommand via the Redfish API. This may sometimes necessary if some of the `collect` output is missing or is not including what is expected. The subcommand expects there to be a running HTTP/HTTPS server running that has an accessible URL path to the firmware download. Specify the URL with the `--firmware-path` flag and the firmware type with the `--component` flag (optional) with all the other usual arguments like in the example below:
 
 ```bash
 ./magellan update 172.16.0.108:443 \
+  --insecure \
   --username $USERNAME \ 
   --password $PASSWORD \
-  --firmware-path http://172.16.0.255:8005/firmware/bios/image.RBU \
+  --firmware-url http://172.16.0.255:8005/firmware/bios/image.RBU \
   --component BIOS
 ```
 
@@ -191,6 +192,30 @@ Then, the update status can be viewed by including the `--status` flag along wit
 ./magellan update 172.16.0.110 --status --username $USERNAME --pass $PASSWORD | jq '.'
 # ...or...
 watch -n 1 "./magellan update 172.16.0.110 --status --username $USERNAME --password $PASSWORD | jq '.'"
+```
+
+#### specific OpenBMC version
+
+Secure option
+
+```bash
+./magellan update https://192.168.75.39 \
+  --username root \
+  --password 0penBmc \
+  --firmware-url /FW/obmc-phosphor-image-aspeed-evb-20250306112144.static.mtd.tar
+  --component BMC
+```
+
+Uses Redfish interface '/redfish/v1/UpdateService/update' instead of the '/redfish/v1/UpdateService/Actions/UpdateService.SimpleUpdate' 
+that is declared as 'insecure' and therefore deprecated in https://github.com/openbmc
+
+The equivalent curl command is the following:
+
+```bash
+curl -k -H "X-Auth-Token: $token" -H "Content-Type:multipart/form-data" -X POST \
+-F UpdateParameters='{"Targets":["/redfish/v1/Managers/bmc"],"@Redfish.OperationApplyTime":"Immediate"};type=application/json' \
+-F UpdateFile='@obmc-phosphor-image.static.mtd.tar;type=application/octet-stream' \
+https://root:0penBmc@192.168.10.10/redfish/v1/UpdateService/update
 ```
 
 ### Getting an Access Token (WIP)
